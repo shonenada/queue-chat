@@ -30,8 +30,40 @@ void* pthread_read_fifo(void* param) {
         }
     }
 }
- 
+
+void showTips() {
+    int cmdInput;
+    printf("*****************************\n");
+    printf("*  Please Input the number  *\n");
+    printf("* 1. Register               *\n");
+    printf("* 2. Login                  *\n");
+    printf("* 3. Exit                   *\n");
+    printf("*****************************\n");
+    scan("%d", &cmdInput);
+    switch(cmdInput) {
+        case 1:
+        // Register
+        break;
+        case 2:
+        // Login
+        break;
+        case 3:
+        exit();
+        break;
+        default:
+        showTips();
+        break;
+    }
+}
+
+void initiliaze() {
+
+}
+
 int main (int argc, char* argv[]) {
+    // initiliaze fifo of reg, login and chatting
+    void showTips();
+
     int fd;
     int res;
     int fifo_fd, client_fifo;
@@ -39,22 +71,22 @@ int main (int argc, char* argv[]) {
     char buffer[BUFF_SIZE];
     char username[20];
     pthread_t thread_id;
- 
+
     signal (SIGKILL, handler);
     signal (SIGINT, handler);
     signal (SIGTERM, handler);
- 
+
     if (access(FIFO_NAME, F_OK) == -1) {
         printf("Could not open FIFO %s.\n", FIFO_NAME);
         exit (EXIT_FAILURE);
     }
- 
+
     fifo_fd = open(FIFO_NAME, O_WRONLY);
     if (fifo_fd == -1) {
         printf("Could not open %s for write access.\n", FIFO_NAME);
         exit (EXIT_FAILURE);
     }
- 
+
     sprintf(pipe_name, "/tmp/client_%d_fifo", getpid());
     res = mkfifo(pipe_name, 0777);
     if (res != 0) {
@@ -67,7 +99,7 @@ int main (int argc, char* argv[]) {
         printf("Could not open %s for read only access.\n", FIFO_NAME);
         exit(EXIT_FAILURE);
     }
- 
+
     info.pid = getpid();
     strcpy(info.client_fifo_name, pipe_name);
     printf("Please input your username (less than 10 char): ");
@@ -76,12 +108,12 @@ int main (int argc, char* argv[]) {
     printf("Welcome %s!\n", info.username);
  
     printf("Cammands:\n\tquit\tQuit client\n\thelp\tShow Help.\n");
- 
+
     setbuf(stdin, NULL);
     // 清空输入缓存先
- 
+
     pthread_create(&thread_id, NULL, &pthread_read_fifo, &client_fifo);
- 
+
     while (1) {
         printf(">>> Say: ");
         fgets(buffer, BUFF_SIZE, stdin);
@@ -97,9 +129,9 @@ int main (int argc, char* argv[]) {
  
     close(fifo_fd);
     close(client_fifo);
- 
+
     (void) unlink(pipe_name);
- 
+
     return 0;
- 
+
 }

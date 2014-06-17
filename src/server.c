@@ -26,7 +26,7 @@ int add_client(int client_pids[], int client, int total) {
     total = total + 1;
     return total;
 }
- 
+
 void broadcast(int clients[], CLIENT_INFO info, int total) {
     int i;
     char pipe_name[250];
@@ -57,9 +57,8 @@ void sendTo(int clients[], CLIENT_INFO info, int total, char* target) {
         }
     }
 }
- 
+
 int main(int argc, char * argv[]) {
- 
     int i;
     int res;
     int fifo_fd, client_fd;
