@@ -30,7 +30,7 @@ int add_client(int client_pids[], int client, int total) {
 void broadcast(int clients[], CLIENT_INFO info, int total) {
     int i;
     char pipe_name[250];
-    char buffer[250];
+    char buffer[1024];
     int client_fd;
     sprintf(buffer, "%s (%d) say: %s", info.username, info.pid, info.content);
     for (i=0;i<total;i++) {
@@ -48,7 +48,7 @@ void sendTo(int clients[], CLIENT_INFO info, int total, char* target) {
     int client_fd;
     sprintf(buffer, "%s (%d) say: %s", info.username, info.pid, info.content);
     for (i=0;i<total;i++) {
-        if (pid == clients[i]) {
+        if (info.pid == clients[i]) {
             sprintf(pipe_name, "/tmp/client_%d_fifo", clients[i]);
             client_fd = open(pipe_name, O_WRONLY | O_NONBLOCK);
             write(client_fd, buffer, strlen(buffer) + 1);

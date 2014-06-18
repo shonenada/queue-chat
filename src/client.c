@@ -12,26 +12,24 @@
 #define CLIENT_FIFO_NAME "/tmp/client_fifo"
 #define BUFF_SIZE 200
  
-char pipe_name [BUFF_SIZE];
- 
-void handler (int sig) {
-    unlink(pipe_name);
-    exit (sig);
-}
- 
-void* pthread_read_fifo(void* param) {
-    int result;
-    int* client_fifo = (int*) param;
-    char buffer[BUFF_SIZE];
-    while(1) {
-        result = read(*client_fifo, buffer, BUFF_SIZE);
-        if (result > 0) {
-            printf("%s", buffer);
-        }
-    }
+int RegController(ClientEnv* env) {
+    char username[32];
+    char password[32];
+    char protocol[1024];
+    printf("Please input your username: ");
+    scanf("%s", username);
+    printf("Please input your password: ");
+    scanf("%s", password);
+    sprintf(protocol, "REG %s %s", username, password);
+    write(env->serverFd, protocol, strlen(protocol) + 1);
+    return 1;
 }
 
-void showTips() {
+int LoginController(ClientEnv* env) {
+    return 1;
+}
+
+void showTips(ClientEnv* env) {
     int cmdInput;
     printf("*****************************\n");
     printf("*  Please Input the number  *\n");
@@ -39,16 +37,16 @@ void showTips() {
     printf("* 2. Login                  *\n");
     printf("* 3. Exit                   *\n");
     printf("*****************************\n");
-    scan("%d", &cmdInput);
+    scanf("%d", &cmdInput);
     switch(cmdInput) {
         case 1:
-        // Register
+        RegController(env);
         break;
         case 2:
-        // Login
+        LoginController(env);
         break;
         case 3:
-        exit();
+        exit(0);
         break;
         default:
         showTips();
@@ -56,51 +54,37 @@ void showTips() {
     }
 }
 
-void initiliaze() {
-
-}
-
 int main (int argc, char* argv[]) {
-    // initiliaze fifo of reg, login and chatting
-    void showTips();
-
-    int fd;
-    int res;
-    int fifo_fd, client_fifo;
-    CLIENT_INFO info;
-    char buffer[BUFF_SIZE];
-    char username[20];
-    pthread_t thread_id;
-
-    signal (SIGKILL, handler);
-    signal (SIGINT, handler);
-    signal (SIGTERM, handler);
+    // Initialize
+    ClientEnv clientEnv = {getpid(), 0, 0, 0, ''};
 
     if (access(FIFO_NAME, F_OK) == -1) {
         printf("Could not open FIFO %s.\n", FIFO_NAME);
         exit (EXIT_FAILURE);
     }
 
-    fifo_fd = open(FIFO_NAME, O_WRONLY);
-    if (fifo_fd == -1) {
+    clientEnv.serverFd = open(FIFO_NAME, O_WRONLY | O_NONBLOCK);
+    if (clientEnv.serverFd == -1) {
         printf("Could not open %s for write access.\n", FIFO_NAME);
         exit (EXIT_FAILURE);
     }
 
-    sprintf(pipe_name, "/tmp/client_%d_fifo", getpid());
-    res = mkfifo(pipe_name, 0777);
-    if (res != 0) {
-        printf("FIFO %s was not created! \n", pipe_name);
+    sprintf(clientEnv.pipe, "/tmp/client_%d_fifo", getpid());
+    clientEnv.clientFIFO = mkfifo(clientEnv.pipe, 0777);
+    if (clientEnv.clientFIFO != 0) {
+        printf("FIFO %s was not created! \n", clientEnv.pipe);
         exit (EXIT_FAILURE);
     }
  
-    client_fifo = open(pipe_name, O_RDONLY | O_NONBLOCK);
-    if (client_fifo == -1) {
+    clientEnv.clientFd = open(clientEnv.pipe, O_RDONLY | O_NONBLOCK);
+    if (clientEnv.clientFd == -1) {
         printf("Could not open %s for read only access.\n", FIFO_NAME);
         exit(EXIT_FAILURE);
     }
 
-    info.pid = getpid();
+    showTips(&clientEnv);
+
+    /** 
     strcpy(info.client_fifo_name, pipe_name);
     printf("Please input your username (less than 10 char): ");
     scanf("%s", &username);
@@ -131,6 +115,11 @@ int main (int argc, char* argv[]) {
     close(client_fifo);
 
     (void) unlink(pipe_name);
+
+    **/
+
+    close(env.serverFd);
+    close(env.clientFd);
 
     return 0;
 
