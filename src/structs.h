@@ -3,6 +3,8 @@
 
 // *** settings ***
 #define MAX_USER 20
+#define SERVER_FIFO "/tmp/server_fifo"
+#define CLIENT_FIFO_PATTERN "/tmp/client_%d_fifo"
 // *** end settings ***
 
 /**
@@ -44,8 +46,11 @@ typedef struct {
 typedef struct {
     int userCount;
     int onlineCount;
+    int serverFIFO;
+    int serverFd;
+    int clientFd;
     User userList[MAX_USER];
-    bool online[MAX_USER];
+    int online[MAX_USER];
 } ServerEnv;
 
 /**
@@ -75,10 +80,10 @@ typedef struct {
 // Find an instnace of User by username
 // Return the index of userlist.
 // Return -1 if username not found
-int findUserIdByUsername(char* username, ServerEnv env) {
+int findUserIdByUsername(ServerEnv* env, char* username) {
     int i;
-    for(i=0; i<env.userCount; ++i) {
-        if (strcmp(username, env.userList[i].username) == 0) {
+    for(i=0; i<env->userCount; ++i) {
+        if (strcmp(username, env->userList[i].username) == 0) {
             return i;
         }
     }
@@ -95,17 +100,17 @@ int findUserIdByPid(ServerEnv* env, int pid) {
     return -1;
 }
 
-int findUserByPid(ServerEnv* env, int pid) {
+User* findUserByPid(ServerEnv* env, int pid) {
     int idx = findUserIdByPid(env, pid);
     if (idx == -1) {
         return NULL;
     }
-    return env->userList[idx];
+    return &(env->userList[idx]);
 }
 
 // Check if the input username is exist.
-int isUsernameExist(char* username, ServerEnv env) {
-    int idx = findUserIdByUsername(userlist, env);
+int isUsernameExist(ServerEnv* env, char* username) {
+    int idx = findUserIdByUsername(env, username);
     if (idx == -1)
         return 0;
     return 1;
@@ -113,7 +118,7 @@ int isUsernameExist(char* username, ServerEnv env) {
 
 // Register User.
 int regUser(ServerEnv* env, User user) {
-    if (userCount >= MAX_USER) {
+    if (env->userCount >= MAX_USER) {
         printf("Reach max user.");
         return -1;
     }
@@ -127,7 +132,7 @@ int loginUser(ServerEnv* env, char* username, char* password, int pid) {
     int i;
     int idx;
     User user;
-    idx = findUserIdByUsername(username, env);
+    idx = findUserIdByUsername(env, username);
     if (idx == -1) {
         printf("Username not exist");
         return 0;

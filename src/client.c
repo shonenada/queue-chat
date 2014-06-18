@@ -8,20 +8,17 @@
 #include <pthread.h>
 #include "structs.h"
  
-#define FIFO_NAME "/tmp/server_fifo"
-#define CLIENT_FIFO_NAME "/tmp/client_fifo"
-#define BUFF_SIZE 200
- 
 int RegController(ClientEnv* env) {
     char username[32];
     char password[32];
-    char protocol[1024];
+    Protocol protocol;
+    protocol.pid = getpid();
     printf("Please input your username: ");
     scanf("%s", username);
     printf("Please input your password: ");
     scanf("%s", password);
-    sprintf(protocol, "REG %s %s", username, password);
-    write(env->serverFd, protocol, strlen(protocol) + 1);
+    sprintf(protocol.msg, "REG %s %s\n", username, password);
+    write(env->serverFd, &protocol, sizeof(Protocol));
     return 1;
 }
 
@@ -49,27 +46,29 @@ void showTips(ClientEnv* env) {
         exit(0);
         break;
         default:
-        showTips();
+        showTips(env);
         break;
     }
 }
 
 int main (int argc, char* argv[]) {
+
     // Initialize
-    ClientEnv clientEnv = {getpid(), 0, 0, 0, ''};
+    ClientEnv clientEnv;
+    clientEnv.pid = getpid();
 
-    if (access(FIFO_NAME, F_OK) == -1) {
-        printf("Could not open FIFO %s.\n", FIFO_NAME);
+    if (access(SERVER_FIFO, F_OK) == -1) {
+        printf("Could not open FIFO %s.\n", SERVER_FIFO);
         exit (EXIT_FAILURE);
     }
 
-    clientEnv.serverFd = open(FIFO_NAME, O_WRONLY | O_NONBLOCK);
+    clientEnv.serverFd = open(SERVER_FIFO, O_WRONLY);
     if (clientEnv.serverFd == -1) {
-        printf("Could not open %s for write access.\n", FIFO_NAME);
+        printf("Could not open %s for write access.\n", SERVER_FIFO);
         exit (EXIT_FAILURE);
     }
 
-    sprintf(clientEnv.pipe, "/tmp/client_%d_fifo", getpid());
+    sprintf(clientEnv.pipe, CLIENT_FIFO_PATTERN, getpid());
     clientEnv.clientFIFO = mkfifo(clientEnv.pipe, 0777);
     if (clientEnv.clientFIFO != 0) {
         printf("FIFO %s was not created! \n", clientEnv.pipe);
@@ -78,7 +77,7 @@ int main (int argc, char* argv[]) {
  
     clientEnv.clientFd = open(clientEnv.pipe, O_RDONLY | O_NONBLOCK);
     if (clientEnv.clientFd == -1) {
-        printf("Could not open %s for read only access.\n", FIFO_NAME);
+        printf("Could not open %s for read only access.\n", SERVER_FIFO);
         exit(EXIT_FAILURE);
     }
 
@@ -118,8 +117,8 @@ int main (int argc, char* argv[]) {
 
     **/
 
-    close(env.serverFd);
-    close(env.clientFd);
+    close(clientEnv.serverFd);
+    close(clientEnv.clientFd);
 
     return 0;
 
