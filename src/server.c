@@ -9,7 +9,8 @@
 #include "parser.h"
  
 int main(int argc, char * argv[]) {
-    int res, state, client_fd;
+    int res, client_fd;
+    Response* response;
     char pipe[200];
     Protocol protocol;
     ServerEnv serverEnv;
@@ -32,23 +33,15 @@ int main(int argc, char * argv[]) {
     printf("\nServer is runing!\n");
 
     while(1) {
+        int i;
         res = read(serverEnv.serverFd, &protocol, sizeof(Protocol));
         if (res != 0) {
-            printf(protocol.msg);
-            state = parse(&serverEnv, &protocol);
-            if (state == 1) {
-                Response response;
-                response.state = 1;
-                strcmp(response.msg, "Success");
-                sprintf(pipe, CLIENT_FIFO_PATTERN, protocol.pid);
-                client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
-                write(client_fd, &response, sizeof(Response));
-                close(client_fd);
-            }
-            else {
-                printf("Error\n");
-            }
-            continue;
+            printf("Protocol: %s", protocol.msg);
+            response = parse(&serverEnv, &protocol);
+            sprintf(pipe, CLIENT_FIFO_PATTERN, protocol.pid);
+            client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
+            write(client_fd, response, sizeof(Response));
+            close(client_fd);
         }
     }
     return 0;

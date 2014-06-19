@@ -17,9 +17,21 @@ int RegController(ClientEnv* env) {
     scanf("%s", username);
     printf("Please input your password: ");
     scanf("%s", password);
-    sprintf(protocol.msg, "REG %s %s\n", username, password);
+    sprintf(protocol.msg, "REG %s %s %s\n", username, password);
     write(env->serverFd, &protocol, sizeof(Protocol));
     return 1;
+}
+
+int WaitResponse(ClientEnv* env) {
+    int res;
+    Response response;
+    while(1) {
+        res = read(env->clientFd, &response, sizeof(Response));
+        if (res > 0) {
+            printf("%d %s", response.state, response.msg);
+            return 0;
+        }
+    }
 }
 
 int LoginController(ClientEnv* env) {
@@ -38,6 +50,7 @@ void showTips(ClientEnv* env) {
     switch(cmdInput) {
         case 1:
         RegController(env);
+        WaitResponse(env);
         break;
         case 2:
         LoginController(env);

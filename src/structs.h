@@ -7,6 +7,15 @@
 #define CLIENT_FIFO_PATTERN "/tmp/client_%d_fifo"
 // *** end settings ***
 
+const int REG_SUCCESS = 1;
+const int REG_USERNAME_EXIST = 2;
+const int REG_UNSUCCESS = 3;
+const int REG_UNKNOWN = 4;
+
+const int LOG_SUCCESS = 1;
+const int LOG_UNSUCCESS = 2;
+const int LOG_UNKNOWN = 3;
+
 /**
  * 请求协议定义
  *  首 3 个字符为 REG LGN CHT 分别表示，注册、登录、发送信息
@@ -37,7 +46,6 @@ typedef struct {
 typedef struct {
     char username[32];
     char password[32];
-    char nickname[16];
 } User;
 
 /**

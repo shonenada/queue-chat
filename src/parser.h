@@ -8,13 +8,14 @@
 
 #include "structs.h"
 
-int RegHandler(ServerEnv* env, Protocol* protocol) {
+Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     int i, j;
     User newUser;
+    Response* rep = (Response*) malloc(sizeof(Response));
     
     // parse username
     i = 0;
-    j = 5;
+    j = 4;
     while(protocol->msg[j] != ' ') {
         newUser.username[i] = protocol->msg[j];
         i++;
@@ -23,8 +24,10 @@ int RegHandler(ServerEnv* env, Protocol* protocol) {
     newUser.username[i] = '\0';
 
     if (isUsernameExist(env, newUser.username)) {
-        printf("Username exists, please login.\n");
-        return 0;
+        printf("%d\n", REG_USERNAME_EXIST);
+        rep->state = REG_USERNAME_EXIST;
+        sprintf(rep->msg, "Username exists, please login.\n");
+        return rep;
     }
 
     // parse password
@@ -38,13 +41,19 @@ int RegHandler(ServerEnv* env, Protocol* protocol) {
     newUser.password[i] = '\0';
 
     if (regUser(env, newUser)) {
-        return 1;
+        rep->state = REG_SUCCESS;
+        sprintf(rep->msg, "Reg Success\n");
+        return rep;
     }
     else {
-        return 0;
+        rep->state = REG_UNSUCCESS;
+        sprintf(rep->msg, "Reg Unsuccess\n");
+        return rep;
     }
 
-    return -1;
+    rep->state = REG_UNKNOWN;
+    sprintf(rep->msg, "Reg Unknown\n");
+    return rep;
 }
 
 int LoginHandler(ServerEnv* env, Protocol* protocol) {
@@ -52,7 +61,7 @@ int LoginHandler(ServerEnv* env, Protocol* protocol) {
     char username[32];
     char password[32];
     i = 0;
-    j = 5;
+    j = 4;
     while(protocol->msg[j] != ' ') {
         username[i] = protocol->msg[j];
         i++;
@@ -144,30 +153,26 @@ int DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     close(client_fd);
 }
 
-int parse(ServerEnv* env, Protocol* protocol) {
+Response* parse(ServerEnv* env, Protocol* protocol) {
     int ret;
     char firstChar = protocol->msg[0];
     switch (firstChar) {
         case 'R':
-            ret = RegHandler(env, protocol);
-            return ret;
+            return RegHandler(env, protocol);
         break;
-        case 'L':
-            ret = LoginHandler(env, protocol);
-            return ret;
-        break;
-        case 'C':
-            if (protocol->msg[5] == '@') {
-                ret = IndirectChatHandler(env, protocol);
-            }
-            else {
-                ret = DirectChatHandler(env, protocol);
-            }
-            return ret;
-        break;
-        default:
-            return -1;
-        break;
+        // // case 'L':
+        //     ret = LoginHandler(env, protocol);
+        //     return ret;
+        // break;
+        // case 'C':
+        //     if (protocol->msg[5] == '@') {
+        //         ret = IndirectChatHandler(env, protocol);
+        //     }
+        //     else {
+        //         ret = DirectChatHandler(env, protocol);
+        //     }
+        //     return ret;
+        // break;
     }
 }
 
