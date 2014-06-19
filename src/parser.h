@@ -149,6 +149,7 @@ Response* IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
     }
     response->state = CHT_SUCCESS;
     sprintf(response->msg, "Success.\n");
+    free(chatResponse);
     return response;
 }
 
@@ -181,19 +182,23 @@ Response* DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     int toUserId = findUserIdByUsername(env, directUsername);
     if (toUserId == -1) {
         response->state = CHT_USERNAME_NOT_EXIST;
+        printf("Username not exists.\n");
         sprintf(response->msg, "Username not exists.\n");
         return response;
     }
     int client_fd;
     int client_pid;
     char pipe[200];
-    char buffer[1024];
+    Response* chatResponse = (Response*) malloc(sizeof(Response));
+    chatResponse->type = RESPONSE_TYPE_CHT;
+    chatResponse->state = CHT_TALK;
     client_pid = env->online[toUserId];
-    sprintf(buffer, "%s talk to you: %s", fromUser->username, msg);
+    sprintf(chatResponse->msg, "%s talk to you: %s\n", fromUser->username, msg);
     sprintf(pipe, "/tmp/client_%d_fifo", client_pid);
     client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
-    write(client_fd, buffer, strlen(buffer) + 1);
+    write(client_fd, chatResponse, sizeof(Response));
     close(client_fd);
+    free(chatResponse);
 
     response->state = CHT_SUCCESS;
     sprintf(response->msg, "Success.\n");
