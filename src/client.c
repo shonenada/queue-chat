@@ -22,56 +22,15 @@ int RegController(ClientEnv* env) {
     return 1;
 }
 
-int LoopChat(ClientEnv* env) {
-    // pthread_t thread_id;
-    // pthread_create(&thread_id, NULL, &readFIFOThread, env);
-    Protocol protocol;
-    protocol.pid = getpid();
-    char buffer[512];
-    while(1) {
-        setbuf(stdin, NULL);
-        printf(">>> Say: ");
-        fgets(buffer, 512, stdin);
-        sprintf(protocol.msg, "CHT %s", buffer);
-        write(env->serverFd, &protocol, sizeof(Protocol));
-        WaitResponse(env);
-    }
-}
-
-int WaitResponse(ClientEnv* env) {
-    int i;
+void* WaitChatResponse(void* param) {
     int res;
     Response response;
+    ClientEnv* env = (ClientEnv*) param;
     while(1) {
         res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0) {
-            switch(response.type) {
-                case RESPONSE_TYPE_REG:
-                    printf("%d %s", response.state, response.msg);
-                    return 1;
-                break;
-                case RESPONSE_TYPE_LOG:
-                    if (response.state == LOG_SUCCESS) {
-                        i = 0;
-                        while(response.msg[i] != ':' && i < 31) {
-                            env->username[i] = response.msg[i];
-                            i++;
-                        }
-                        env->username[i] = '\0';
-                        printf("Login Successfully\n");
-                        LoopChat(env);
-                    }
-                    else {
-                        printf("%d %s", response.state, response.msg);
-                    }
-                    return 1;
-                break;
-                case RESPONSE_TYPE_CHT:
-                    if (response.state == CHT_TALK) {
-                        printf("%s", response.msg);
-                        return 1;
-                    }
-                break;
+        if (res > 0 && response.type == RESPONSE_TYPE_CHT) {
+            if (response.state == CHT_TALK) {
+                printf("%s", response.msg);
             }
         }
     }
@@ -83,7 +42,7 @@ int WaitRegResponse(ClientEnv* env) {
     Response response;
     while(1) {
         res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0) {
+        if (res > 0 && response.type == RESPONSE_TYPE_REG) {
             printf("%d %s", response.state, response.msg);
             return 1;
         }
@@ -110,7 +69,7 @@ int WaitLoginResponse(ClientEnv* env) {
     Response response;
     while(1) {
         res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0) {
+        if (res > 0 && response.type == RESPONSE_TYPE_LOG) {
             if (response.state == LOG_SUCCESS) {
                 i = 0;
                 while(response.msg[i] != ':' && i < 31) {
@@ -129,15 +88,18 @@ int WaitLoginResponse(ClientEnv* env) {
     }
 }
 
-void* readFIFOThread(void* param) {
-    int result;
-    ClientEnv* env = (ClientEnv*) param;
+int LoopChat(ClientEnv* env) {
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, &WaitChatResponse, env);
+    Protocol protocol;
+    protocol.pid = getpid();
     char buffer[512];
     while(1) {
-        result = read(env->clientFd, buffer, 512);
-        if (result > 0) {
-            printf("%s", buffer);
-        }
+        setbuf(stdin, NULL);
+        printf(">>> Say: ");
+        fgets(buffer, 512, stdin);
+        sprintf(protocol.msg, "CHT %s", buffer);
+        write(env->serverFd, &protocol, sizeof(Protocol));
     }
 }
 
@@ -158,12 +120,12 @@ void parseInput(ClientEnv* env, int input) {
     switch(input) {
         case 1:
         RegController(env);
-        WaitResponse(env);
+        WaitRegResponse(env);
         doChoose(env);
         break;
         case 2:
         LoginController(env);
-        WaitResponse(env);
+        WaitLoginResponse(env);
         break;
         case 3:
         exit(0);
