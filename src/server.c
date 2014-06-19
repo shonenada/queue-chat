@@ -14,6 +14,7 @@ int main(int argc, char * argv[]) {
     char pipe[200];
     Protocol protocol;
     ServerEnv serverEnv;
+    serverEnv.userCount = 0;
  
     // create FIFO, if necessary 
     if (access(SERVER_FIFO, F_OK) == -1) {

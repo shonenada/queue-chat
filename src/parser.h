@@ -9,7 +9,7 @@
 #include "structs.h"
 
 Response* RegHandler(ServerEnv* env, Protocol* protocol) {
-    int i, j;
+    int i, j, flag;
     User newUser;
     Response* rep = (Response*) malloc(sizeof(Response));
     
@@ -24,7 +24,6 @@ Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     newUser.username[i] = '\0';
 
     if (isUsernameExist(env, newUser.username)) {
-        printf("%d\n", REG_USERNAME_EXIST);
         rep->state = REG_USERNAME_EXIST;
         sprintf(rep->msg, "Username exists, please login.\n");
         return rep;
@@ -40,7 +39,14 @@ Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     }
     newUser.password[i] = '\0';
 
-    if (regUser(env, newUser)) {
+    flag = regUser(env, newUser);
+
+    if (flag == -1) {
+        rep->state = REG_MAX_USER;
+        sprintf(rep->msg, "Max User\n");
+        return rep;
+    }
+    else if (flag == 1) {
         rep->state = REG_SUCCESS;
         sprintf(rep->msg, "Reg Success\n");
         return rep;
@@ -78,21 +84,22 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
         i++;
         j++;
     }
+    password[i] = '\0';
 
     flag = loginUser(env, username, password, protocol->pid);
-    if (flag == -1) {
+    if (flag == 2) {
         response->state = LOG_USERNAME_NOT_EXIST;
         sprintf(response->msg, "Username not exists\n");
-        return response;
-    }
-    else if (flag == 0) {
-        response->state = LOG_UNSUCCESS;
-        sprintf(response->msg, "Wrong username or password\n");
         return response;
     }
     else if (flag == 1) {
         response->state = LOG_SUCCESS;
         sprintf(response->msg, "Login successfully\n");
+        return response;
+    }
+    else if (flag == 0) {
+        response->state = LOG_UNSUCCESS;
+        sprintf(response->msg, "Wrong username or password\n");
         return response;
     }
 

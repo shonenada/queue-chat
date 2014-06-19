@@ -11,6 +11,7 @@ const int REG_SUCCESS = 1;
 const int REG_USERNAME_EXIST = 2;
 const int REG_UNSUCCESS = 3;
 const int REG_UNKNOWN = 4;
+const int REG_MAX_USER = 5;
 
 const int LOG_SUCCESS = 1;
 const int LOG_UNSUCCESS = 2;
@@ -142,9 +143,9 @@ int loginUser(ServerEnv* env, char* username, char* password, int pid) {
     User user;
     idx = findUserIdByUsername(env, username);
     if (idx == -1) {
-        return -1;
+        return 2;
     }
-    else if (idx > 0 && idx < MAX_USER) {
+    else if (idx >= 0 && idx < MAX_USER) {
         user = env->userList[idx];
         if (strcmp(password, user.password) == 0) {
             env->online[idx] = pid;
