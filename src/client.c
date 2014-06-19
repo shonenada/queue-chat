@@ -44,7 +44,6 @@ int LoginController(ClientEnv* env) {
     printf("Please input your password: ");
     scanf("%s", password);
     sprintf(protocol.msg, "LOG %s %s\n", username, password);
-    printf(protocol.msg);
     write(env->serverFd, &protocol, sizeof(Protocol));
     return 1;
 }

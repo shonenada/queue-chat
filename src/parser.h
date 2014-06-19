@@ -57,7 +57,7 @@ Response* RegHandler(ServerEnv* env, Protocol* protocol) {
 }
 
 Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
-    int i, j;
+    int i, j, flag;
     char username[32];
     char password[32];
     Response* response = (Response*) malloc(sizeof(Response));
@@ -79,16 +79,22 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
         j++;
     }
 
-    // if(loginUser(env, username, password, protocol->pid)) {
-        // response->state = LOG_SUCCESS;
-        // sprintf(response->msg, "Login Success\n");
-        // return response;
-    // }
-    // else {
-        // response->state = LOG_UNSUCCESS;
-        // sprintf(response->msg, "Login Unsuccess\n");
-        // return response;
-    // }
+    flag = loginUser(env, username, password, protocol->pid);
+    if (flag == -1) {
+        response->state = LOG_USERNAME_NOT_EXIST;
+        sprintf(response->msg, "Username not exists\n");
+        return response;
+    }
+    else if (flag == 0) {
+        response->state = LOG_UNSUCCESS;
+        sprintf(response->msg, "Wrong username or password\n");
+        return response;
+    }
+    else if (flag == 1) {
+        response->state = LOG_SUCCESS;
+        sprintf(response->msg, "Login successfully\n");
+        return response;
+    }
 
     response->state = LOG_UNKNOWN;
     sprintf(response->msg, "Unknown Error\n");

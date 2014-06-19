@@ -15,6 +15,7 @@ const int REG_UNKNOWN = 4;
 const int LOG_SUCCESS = 1;
 const int LOG_UNSUCCESS = 2;
 const int LOG_UNKNOWN = 3;
+const int LOG_USERNAME_NOT_EXIST = 4;
 
 /**
  * 请求协议定义
@@ -137,13 +138,11 @@ int regUser(ServerEnv* env, User user) {
 
 // Login
 int loginUser(ServerEnv* env, char* username, char* password, int pid) {
-    int i;
     int idx;
     User user;
     idx = findUserIdByUsername(env, username);
     if (idx == -1) {
-        printf("Username not exist");
-        return 0;
+        return -1;
     }
     else if (idx > 0 && idx < MAX_USER) {
         user = env->userList[idx];
@@ -154,6 +153,7 @@ int loginUser(ServerEnv* env, char* username, char* password, int pid) {
         }
         return 0;
     }
+    return -1;
 }
 
 #endif // _STRUCT_H
