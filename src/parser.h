@@ -11,7 +11,8 @@
 Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     int i, j, flag;
     User newUser;
-    Response* rep = (Response*) malloc(sizeof(Response));
+    Response* response = (Response*) malloc(sizeof(Response));
+    response->type = RESPONSE_TYPE_REG;
     
     // parse username
     i = 0;
@@ -24,9 +25,9 @@ Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     newUser.username[i] = '\0';
 
     if (isUsernameExist(env, newUser.username)) {
-        rep->state = REG_USERNAME_EXIST;
-        sprintf(rep->msg, "Username exists, please login.\n");
-        return rep;
+        response->state = REG_USERNAME_EXIST;
+        sprintf(response->msg, "Username exists, please login.\n");
+        return response;
     }
 
     // parse password
@@ -42,24 +43,24 @@ Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     flag = regUser(env, newUser);
 
     if (flag == -1) {
-        rep->state = REG_MAX_USER;
-        sprintf(rep->msg, "Max User\n");
-        return rep;
+        response->state = REG_MAX_USER;
+        sprintf(response->msg, "Max User\n");
+        return response;
     }
     else if (flag == 1) {
-        rep->state = REG_SUCCESS;
-        sprintf(rep->msg, "Reg Success\n");
-        return rep;
+        response->state = REG_SUCCESS;
+        sprintf(response->msg, "Reg Success\n");
+        return response;
     }
     else {
-        rep->state = REG_UNSUCCESS;
-        sprintf(rep->msg, "Reg Unsuccess\n");
-        return rep;
+        response->state = REG_UNSUCCESS;
+        sprintf(response->msg, "Reg Unsuccess\n");
+        return response;
     }
 
-    rep->state = REG_UNKNOWN;
-    sprintf(rep->msg, "Reg Unknown\n");
-    return rep;
+    response->state = REG_UNKNOWN;
+    sprintf(response->msg, "Reg Unknown\n");
+    return response;
 }
 
 Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
@@ -67,6 +68,7 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
     char username[32];
     char password[32];
     Response* response = (Response*) malloc(sizeof(Response));
+    response->type = RESPONSE_TYPE_LOG;
 
     i = 0;
     j = 4;
@@ -94,7 +96,7 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
     }
     else if (flag == 1) {
         response->state = LOG_SUCCESS;
-        sprintf(response->msg, "Login successfully\n");
+        sprintf(response->msg, "%s: Login successfully.\n", username);
         return response;
     }
     else if (flag == 0) {
@@ -108,11 +110,14 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
     return response;
 }
 
-int IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
+Response* IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
     int i, j;
     char msg[250];
+    Response* response = (Response*) malloc(sizeof(Response));
+    response->type = RESPONSE_TYPE_CHT;
+
     i = 0;
-    j = 5;
+    j = 4;
     while(protocol->msg[j] != ' ' && protocol->msg[j] != '\n') {
         msg[i] = protocol->msg[j];
         i++;
@@ -121,29 +126,41 @@ int IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
     msg[i] = '\0';
 
     User* user = findUserByPid(env, protocol->pid);
+    if (user == NULL) {
+        response->state = CHT_USER_NOT_LOGIN;
+        sprintf(response->msg, "User not login\n");
+        return response;
+    }
     int client_pid;
     int client_fd;
     char pipe[200];
-    char buffer[1024];
-    sprintf(buffer, "%s say: %s", user->username, msg);
+    Response* chatResponse = (Response*) malloc(sizeof(Response));
+    chatResponse->type = RESPONSE_TYPE_CHT;
+    chatResponse->state = CHT_TALK;
+    sprintf(chatResponse->msg, "%s say: %s\n", user->username, msg);
     for (i=0; i<env->userCount; ++i) {
         client_pid = env->online[i];
-        if (client_pid > 0){
+        if (client_pid > 0) {
             sprintf(pipe, "/tmp/client_%d_fifo", env->online[i]);
             client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
-            write(client_fd, buffer, strlen(buffer) + 1);
+            write(client_fd, chatResponse, sizeof(Response));
             close(client_fd);
         }
     }
+    response->state = CHT_SUCCESS;
+    sprintf(response->msg, "Success.\n");
+    return response;
 }
 
-int DirectChatHandler(ServerEnv* env, Protocol* protocol) {
+Response* DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     int i, j;
-    char directUsername[32];
     char msg[250];
+    char directUsername[32];
+    Response* response = (Response*) malloc(sizeof(Response));
+    response->type = RESPONSE_TYPE_CHT;
 
     i = 0;
-    j = 6;
+    j = 5;
     while(protocol->msg[j] != ' ' && i < 31) {
         directUsername[i] = protocol->msg[j];
         i++;
@@ -162,6 +179,11 @@ int DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     
     User *fromUser = findUserByPid(env, protocol->pid);
     int toUserId = findUserIdByUsername(env, directUsername);
+    if (toUserId == -1) {
+        response->state = CHT_USERNAME_NOT_EXIST;
+        sprintf(response->msg, "Username not exists.\n");
+        return response;
+    }
     int client_fd;
     int client_pid;
     char pipe[200];
@@ -172,6 +194,10 @@ int DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
     write(client_fd, buffer, strlen(buffer) + 1);
     close(client_fd);
+
+    response->state = CHT_SUCCESS;
+    sprintf(response->msg, "Success.\n");
+    return response;
 }
 
 Response* parse(ServerEnv* env, Protocol* protocol) {
@@ -184,15 +210,14 @@ Response* parse(ServerEnv* env, Protocol* protocol) {
         case 'L':
             return LoginHandler(env, protocol);
         break;
-        // case 'C':
-        //     if (protocol->msg[5] == '@') {
-        //         ret = IndirectChatHandler(env, protocol);
-        //     }
-        //     else {
-        //         ret = DirectChatHandler(env, protocol);
-        //     }
-        //     return ret;
-        // break;
+        case 'C':
+            if (protocol->msg[4] == '@') {
+                return DirectChatHandler(env, protocol);
+            }
+            else {
+                return IndirectChatHandler(env, protocol);
+            }
+        break;
     }
 }
 

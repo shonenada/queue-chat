@@ -7,6 +7,10 @@
 #define CLIENT_FIFO_PATTERN "/tmp/client_%d_fifo"
 // *** end settings ***
 
+const int RESPONSE_TYPE_REG = 1;
+const int RESPONSE_TYPE_LOG = 2;
+const int RESPONSE_TYPE_CHT = 3;
+
 const int REG_SUCCESS = 1;
 const int REG_USERNAME_EXIST = 2;
 const int REG_UNSUCCESS = 3;
@@ -18,13 +22,19 @@ const int LOG_UNSUCCESS = 2;
 const int LOG_UNKNOWN = 3;
 const int LOG_USERNAME_NOT_EXIST = 4;
 
+const int CHT_TALK = 0;
+const int CHT_SUCCESS = 1;
+const int CHT_USERNAME_NOT_EXIST = 2;
+const int CHT_USER_NOT_LOGIN = 3;
+
+
 /**
  * 请求协议定义
- *  首 3 个字符为 REG LGN CHT 分别表示，注册、登录、发送信息
+ *  首 3 个字符为 REG LOG CHT 分别表示，注册、登录、发送信息
  *  第 4 个字符为 空格
  *  随后的字符根据不同的 method 有不同的定义。
  *   REG：第 5 个字符起到末尾(\n) 表示欲注册的用户名和密码。用空格分隔开。
- *   LGN：第 5 个字符起到末尾(\n) 表示欲登录的用户名和密码。用空格分隔开。
+ *   LOG：第 5 个字符起到末尾(\n) 表示欲登录的用户名和密码。用空格分隔开。
  *   CHT：第 5 个字符起到末尾，表示发送的信息。
  **/
 typedef struct {
@@ -34,10 +44,12 @@ typedef struct {
 
 /**
  * 响应协议定义
+ *  type 类型(REG, LOG, CHT)
  *  state 响应的状态。
  *  msg 表示响应的信息。
  **/
 typedef struct {
+    int type;
     int state;
     char msg[1024];
 } Response;
@@ -58,7 +70,6 @@ typedef struct {
     int onlineCount;
     int serverFIFO;
     int serverFd;
-    int clientFd;
     User userList[MAX_USER];
     int online[MAX_USER];
 } ServerEnv;
@@ -72,18 +83,8 @@ typedef struct {
     int serverFd;
     int clientFIFO;
     char pipe[200];
+    char username[32];
 } ClientEnv;
-
-
-
-typedef struct {
-    int pid;
-    char client_fifo_name[100];
-    char username[20];
-    char content[200];
-} client_info, *client_info_ptr;
-
-
 
 // Method for User Model
 

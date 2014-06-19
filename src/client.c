@@ -22,14 +22,70 @@ int RegController(ClientEnv* env) {
     return 1;
 }
 
+int LoopChat(ClientEnv* env) {
+    // pthread_t thread_id;
+    // pthread_create(&thread_id, NULL, &readFIFOThread, env);
+    Protocol protocol;
+    protocol.pid = getpid();
+    char buffer[512];
+    while(1) {
+        setbuf(stdin, NULL);
+        printf(">>> Say: ");
+        fgets(buffer, 512, stdin);
+        sprintf(protocol.msg, "CHT %s", buffer);
+        write(env->serverFd, &protocol, sizeof(Protocol));
+        WaitResponse(env);
+    }
+}
+
 int WaitResponse(ClientEnv* env) {
+    int i;
+    int res;
+    Response response;
+    while(1) {
+        res = read(env->clientFd, &response, sizeof(Response));
+        if (res > 0) {
+            switch(response.type) {
+                case RESPONSE_TYPE_REG:
+                    printf("%d %s", response.state, response.msg);
+                    return 1;
+                break;
+                case RESPONSE_TYPE_LOG:
+                    if (response.state == LOG_SUCCESS) {
+                        i = 0;
+                        while(response.msg[i] != ':' && i < 31) {
+                            env->username[i] = response.msg[i];
+                            i++;
+                        }
+                        env->username[i] = '\0';
+                        printf("Login Successfully\n");
+                        LoopChat(env);
+                    }
+                    else {
+                        printf("%d %s", response.state, response.msg);
+                    }
+                    return 1;
+                break;
+                case RESPONSE_TYPE_CHT:
+                    if (response.state == CHT_TALK) {
+                        printf("%s", response.msg);
+                        return 1;
+                    }
+                break;
+            }
+        }
+    }
+}
+
+int WaitRegResponse(ClientEnv* env) {
+    int i;
     int res;
     Response response;
     while(1) {
         res = read(env->clientFd, &response, sizeof(Response));
         if (res > 0) {
             printf("%d %s", response.state, response.msg);
-            return 0;
+            return 1;
         }
     }
 }
@@ -48,7 +104,44 @@ int LoginController(ClientEnv* env) {
     return 1;
 }
 
-void showTips(ClientEnv* env) {
+int WaitLoginResponse(ClientEnv* env) {
+    int i;
+    int res;
+    Response response;
+    while(1) {
+        res = read(env->clientFd, &response, sizeof(Response));
+        if (res > 0) {
+            if (response.state == LOG_SUCCESS) {
+                i = 0;
+                while(response.msg[i] != ':' && i < 31) {
+                    env->username[i] = response.msg[i];
+                    i++;
+                }
+                env->username[i] = '\0';
+                printf("Login Successfully\n");
+                LoopChat(env);
+            }
+            else {
+                printf("%d %s", response.state, response.msg);
+            }
+            return 1;
+        }
+    }
+}
+
+void* readFIFOThread(void* param) {
+    int result;
+    ClientEnv* env = (ClientEnv*) param;
+    char buffer[512];
+    while(1) {
+        result = read(env->clientFd, buffer, 512);
+        if (result > 0) {
+            printf("%s", buffer);
+        }
+    }
+}
+
+int showTips() {
     int cmdInput;
     printf("*****************************\n");
     printf("*  Please Input the number  *\n");
@@ -57,10 +150,16 @@ void showTips(ClientEnv* env) {
     printf("* 3. Exit                   *\n");
     printf("*****************************\n");
     scanf("%d", &cmdInput);
-    switch(cmdInput) {
+    return cmdInput;
+}
+
+void doChoose(ClientEnv* env);
+void parseInput(ClientEnv* env, int input) {
+    switch(input) {
         case 1:
         RegController(env);
         WaitResponse(env);
+        doChoose(env);
         break;
         case 2:
         LoginController(env);
@@ -70,9 +169,15 @@ void showTips(ClientEnv* env) {
         exit(0);
         break;
         default:
-        showTips(env);
+        doChoose(env);
         break;
     }
+}
+
+void doChoose(ClientEnv* env) {
+    int chose;
+    chose = showTips();
+    parseInput(env, chose);
 }
 
 int main (int argc, char* argv[]) {
@@ -105,44 +210,12 @@ int main (int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    showTips(&clientEnv);
-
-    /** 
-    strcpy(info.client_fifo_name, pipe_name);
-    printf("Please input your username (less than 10 char): ");
-    scanf("%s", &username);
-    strcpy(info.username, username);
-    printf("Welcome %s!\n", info.username);
- 
-    printf("Cammands:\n\tquit\tQuit client\n\thelp\tShow Help.\n");
-
-    setbuf(stdin, NULL);
-    // 清空输入缓存先
-
-    pthread_create(&thread_id, NULL, &pthread_read_fifo, &client_fifo);
-
-    while (1) {
-        printf(">>> Say: ");
-        fgets(buffer, BUFF_SIZE, stdin);
-        if (strcmp(buffer, "quit\n") == 0) {
-            break;
-        }
-        if (strcmp(buffer, "\n") == 0) {
-            continue;
-        }
-        strcpy(info.content, buffer);
-        write(fifo_fd, &info, sizeof(CLIENT_INFO));
-    }
- 
-    close(fifo_fd);
-    close(client_fifo);
-
-    (void) unlink(pipe_name);
-
-    **/
+    doChoose(&clientEnv);
 
     close(clientEnv.serverFd);
     close(clientEnv.clientFd);
+
+    unlink(clientEnv.clientFIFO);
 
     return 0;
 

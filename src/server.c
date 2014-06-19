@@ -36,7 +36,7 @@ int main(int argc, char * argv[]) {
     while(1) {
         res = read(serverEnv.serverFd, &protocol, sizeof(Protocol));
         if (res != 0) {
-            printf("Protocol: %s", protocol.msg);
+            printf("Protocol: %d - %s", protocol.pid, protocol.msg);
             response = parse(&serverEnv, &protocol);
             sprintf(pipe, CLIENT_FIFO_PATTERN, protocol.pid);
             client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
