@@ -17,7 +17,7 @@ int RegController(ClientEnv* env) {
     scanf("%s", username);
     printf("Please input your password: ");
     scanf("%s", password);
-    sprintf(protocol.msg, "REG %s %s %s\n", username, password);
+    sprintf(protocol.msg, "REG %s %s\n", username, password);
     write(env->serverFd, &protocol, sizeof(Protocol));
     return 1;
 }
@@ -35,6 +35,17 @@ int WaitResponse(ClientEnv* env) {
 }
 
 int LoginController(ClientEnv* env) {
+    char username[32];
+    char password[32];
+    Protocol protocol;
+    protocol.pid = getpid();
+    printf("Please input your username: ");
+    scanf("%s", username);
+    printf("Please input your password: ");
+    scanf("%s", password);
+    sprintf(protocol.msg, "LOG %s %s\n", username, password);
+    printf(protocol.msg);
+    write(env->serverFd, &protocol, sizeof(Protocol));
     return 1;
 }
 
@@ -54,6 +65,7 @@ void showTips(ClientEnv* env) {
         break;
         case 2:
         LoginController(env);
+        WaitResponse(env);
         break;
         case 3:
         exit(0);

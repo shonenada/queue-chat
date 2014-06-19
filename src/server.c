@@ -33,7 +33,6 @@ int main(int argc, char * argv[]) {
     printf("\nServer is runing!\n");
 
     while(1) {
-        int i;
         res = read(serverEnv.serverFd, &protocol, sizeof(Protocol));
         if (res != 0) {
             printf("Protocol: %s", protocol.msg);
@@ -41,6 +40,7 @@ int main(int argc, char * argv[]) {
             sprintf(pipe, CLIENT_FIFO_PATTERN, protocol.pid);
             client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
             write(client_fd, response, sizeof(Response));
+            free(response);
             close(client_fd);
         }
     }

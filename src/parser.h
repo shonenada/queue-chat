@@ -56,10 +56,12 @@ Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     return rep;
 }
 
-int LoginHandler(ServerEnv* env, Protocol* protocol) {
+Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
     int i, j;
     char username[32];
     char password[32];
+    Response* response = (Response*) malloc(sizeof(Response));
+
     i = 0;
     j = 4;
     while(protocol->msg[j] != ' ') {
@@ -77,14 +79,20 @@ int LoginHandler(ServerEnv* env, Protocol* protocol) {
         j++;
     }
 
-    if(loginUser(env, username, password, protocol->pid)) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
+    // if(loginUser(env, username, password, protocol->pid)) {
+        // response->state = LOG_SUCCESS;
+        // sprintf(response->msg, "Login Success\n");
+        // return response;
+    // }
+    // else {
+        // response->state = LOG_UNSUCCESS;
+        // sprintf(response->msg, "Login Unsuccess\n");
+        // return response;
+    // }
 
-    return -1;
+    response->state = LOG_UNKNOWN;
+    sprintf(response->msg, "Unknown Error\n");
+    return response;
 }
 
 int IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
@@ -160,10 +168,9 @@ Response* parse(ServerEnv* env, Protocol* protocol) {
         case 'R':
             return RegHandler(env, protocol);
         break;
-        // // case 'L':
-        //     ret = LoginHandler(env, protocol);
-        //     return ret;
-        // break;
+        case 'L':
+            return LoginHandler(env, protocol);
+        break;
         // case 'C':
         //     if (protocol->msg[5] == '@') {
         //         ret = IndirectChatHandler(env, protocol);
