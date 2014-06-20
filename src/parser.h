@@ -137,7 +137,7 @@ Response* IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
     Response* chatResponse = (Response*) malloc(sizeof(Response));
     chatResponse->type = RESPONSE_TYPE_CHT;
     chatResponse->state = CHT_TALK;
-    sprintf(chatResponse->msg, "%s say: %s\n", user->username, msg);
+    sprintf(chatResponse->msg, "\033[47;31m%s\033[0m say: \033[32m%s\033[0m\n", user->username, msg);
     for (i=0; i<env->userCount; ++i) {
         client_pid = env->online[i];
         if (client_pid > 0 && client_pid != protocol->pid) {
@@ -193,7 +193,7 @@ Response* DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     chatResponse->type = RESPONSE_TYPE_CHT;
     chatResponse->state = CHT_TALK;
     client_pid = env->online[toUserId];
-    sprintf(chatResponse->msg, "%s talk to you: %s\n", fromUser->username, msg);
+    sprintf(chatResponse->msg, "\033[47;34m%s\033[0m talk to you: \033[33m%s\033[0m\n", fromUser->username, msg);
     sprintf(pipe, "/tmp/client_%d_fifo", client_pid);
     client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
     write(client_fd, chatResponse, sizeof(Response));
