@@ -30,7 +30,8 @@ void* WaitChatResponse(void* param) {
         res = read(env->clientFd, &response, sizeof(Response));
         if (res > 0 && response.type == RESPONSE_TYPE_CHT) {
             if (response.state == CHT_TALK) {
-                printf("%s", response.msg);
+                printf("\033[9D\033[K%s>>> Say: ", response.msg);
+                fflush(stdout);
             }
         }
     }
@@ -143,7 +144,6 @@ void doChoose(ClientEnv* env) {
 }
 
 int main (int argc, char* argv[]) {
-
     // Initialize
     ClientEnv clientEnv;
     clientEnv.pid = getpid();
@@ -180,5 +180,4 @@ int main (int argc, char* argv[]) {
     unlink(clientEnv.clientFIFO);
 
     return 0;
-
 }
