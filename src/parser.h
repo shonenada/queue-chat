@@ -140,7 +140,7 @@ Response* IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
     sprintf(chatResponse->msg, "%s say: %s\n", user->username, msg);
     for (i=0; i<env->userCount; ++i) {
         client_pid = env->online[i];
-        if (client_pid > 0) {
+        if (client_pid > 0 && client_pid != protocol->pid) {
             sprintf(pipe, "/tmp/client_%d_fifo", env->online[i]);
             client_fd = open(pipe, O_WRONLY | O_NONBLOCK);
             write(client_fd, chatResponse, sizeof(Response));
