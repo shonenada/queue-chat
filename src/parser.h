@@ -205,6 +205,20 @@ Response* DirectChatHandler(ServerEnv* env, Protocol* protocol) {
     return response;
 }
 
+Response* Logout(ServerEnv* env, Protocol* protocol) {
+    int i;
+    Response* response = (Response*) malloc(sizeof(Response));
+    response->type = RESPONSE_TYPE_OUT;
+    for(i=0; i<env->userCount; ++i) {
+        if (env->online[i] == protocol.pid) {
+            env->online[i] = 0;
+            response->state = OUT_SUCCESS;
+            sprintf(response->msg, "Logout Success.\n");
+            return response;
+        }
+    }
+}
+
 Response* parse(ServerEnv* env, Protocol* protocol) {
     int ret;
     char firstChar = protocol->msg[0];
@@ -222,6 +236,9 @@ Response* parse(ServerEnv* env, Protocol* protocol) {
             else {
                 return IndirectChatHandler(env, protocol);
             }
+        break;
+        case 'O':
+            return Logout(env, protocol);
         break;
     }
 }

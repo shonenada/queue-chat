@@ -7,6 +7,25 @@
 #include <signal.h>
 #include <pthread.h>
 #include "structs.h"
+
+ClientEnv clientEnv;
+
+void showHelp() {
+    printf("************* H E L P *************\n");
+    printf("*   1. Talk to online user        *\n");
+    printf("*      Just Say                   *\n");
+    printf("*   2. Talk to particular user    *\n");
+    printf("*      @username message          *\n");
+    printf("***********************************\n");
+}
+
+void Logout() {
+    ClientEnv* env = &clientEnv;
+    Protocol protocol;
+    protocol.pid = getpid();
+    sprintf(protocol.msg, "OUT\n");
+    write(env->serverFd, &protocol, sizeof(Protocol));
+}
  
 int RegController(ClientEnv* env) {
     char username[32];
@@ -28,10 +47,18 @@ void* WaitChatResponse(void* param) {
     ClientEnv* env = (ClientEnv*) param;
     while(1) {
         res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0 && response.type == RESPONSE_TYPE_CHT) {
-            if (response.state == CHT_TALK) {
-                printf("\033[9D\033[K%s>>> Say: ", response.msg);
-                fflush(stdout);
+        if (res > 0) {
+            if (response.type == RESPONSE_TYPE_CHT) {
+                if (response.state == CHT_TALK) {
+                    printf("\033[9D\033[K%s>>> Say: ", response.msg);
+                    fflush(stdout);
+                }
+            }
+            else if (response.type == RESPONSE_TYPE_OUT) {
+                if (response.state == OUT_SUCCESS) {
+                    printf("Logout Successfully.\n");
+                    exit(0);
+                }
             }
         }
     }
@@ -99,6 +126,10 @@ int LoopChat(ClientEnv* env) {
         setbuf(stdin, NULL);
         printf(">>> Say: ");
         fgets(buffer, 512, stdin);
+        if (strcmp(buffer, "help\n") == 0) {
+            showHelp();
+            continue;
+        }
         sprintf(protocol.msg, "CHT %s", buffer);
         write(env->serverFd, &protocol, sizeof(Protocol));
     }
@@ -143,10 +174,18 @@ void doChoose(ClientEnv* env) {
     parseInput(env, chose);
 }
 
+void beforeExit(int sig) {
+    Logout();
+    exit(sig);    
+}
+
 int main (int argc, char* argv[]) {
     // Initialize
-    ClientEnv clientEnv;
     clientEnv.pid = getpid();
+
+    signal(SIGKILL, beforeExit);
+    signal(SIGINT, beforeExit);
+    signal(SIGTERM, beforeExit);
 
     if (access(SERVER_FIFO, F_OK) == -1) {
         printf("Could not open FIFO %s.\n", SERVER_FIFO);
