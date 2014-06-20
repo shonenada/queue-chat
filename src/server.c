@@ -8,13 +8,60 @@
 #include "structs.h"
 #include "parser.h"
  
+ServerEnv serverEnv;
+
+int loadFromFile() {
+    int i;
+    ServerEnv* env = &serverEnv;
+    FILE* file = NULL;
+
+    if ((file = fopen(USER_LIST_FILENAME, "r")) == NULL) {
+        perror("Error Raised.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fread(&(env->userCount), sizeof(int), 1, file);
+    fread(env->userList, sizeof(User), env->userCount, file);
+
+    fclose(file);
+
+    return 1;
+}
+
+int saveToFile() {
+    FILE* file = NULL;
+    ServerEnv* env = &serverEnv;
+
+    if ((file = fopen(USER_LIST_FILENAME, "w+")) == NULL) {
+        perror("Error Raised.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fwrite(&(env->userCount), sizeof(int), 1, file);
+    fwrite(env->userList, sizeof(User), env->userCount, file);
+
+    fclose(file);
+
+    return 1;
+}
+
+void beforeExit(int sig) {
+    saveToFile();
+    exit(sig);
+}
+
 int main(int argc, char * argv[]) {
     int res, client_fd;
     Response* response;
     char pipe[200];
     Protocol protocol;
-    ServerEnv serverEnv;
     serverEnv.userCount = 0;
+
+    loadFromFile(serverEnv);
+
+    signal(SIGKILL, beforeExit);
+    signal(SIGINT, beforeExit);
+    signal(SIGTERM, beforeExit);
  
     // create FIFO, if necessary 
     if (access(SERVER_FIFO, F_OK) == -1) {

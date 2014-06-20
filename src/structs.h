@@ -4,6 +4,7 @@
 // *** settings ***
 #define MAX_USER 20
 #define SERVER_FIFO "/tmp/server_fifo"
+#define USER_LIST_FILENAME "userlist.db"
 #define CLIENT_FIFO_PATTERN "/tmp/client_%d_fifo"
 // *** end settings ***
 
