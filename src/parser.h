@@ -210,7 +210,7 @@ Response* Logout(ServerEnv* env, Protocol* protocol) {
     Response* response = (Response*) malloc(sizeof(Response));
     response->type = RESPONSE_TYPE_OUT;
     for(i=0; i<env->userCount; ++i) {
-        if (env->online[i] == protocol.pid) {
+        if (env->online[i] == protocol->pid) {
             env->online[i] = 0;
             response->state = OUT_SUCCESS;
             sprintf(response->msg, "Logout Success.\n");
