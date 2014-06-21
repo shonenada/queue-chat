@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/msg.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <pthread.h>
+#include <errno.h>
 #include "structs.h"
 
 ClientEnv clientEnv;
@@ -22,55 +24,64 @@ void showHelp() {
 void Logout() {
     ClientEnv* env = &clientEnv;
     Protocol protocol;
+    protocol.msg_type = MSG_TYPE_COMMON;
     protocol.pid = getpid();
     sprintf(protocol.msg, "OUT\n");
-    write(env->serverFd, &protocol, sizeof(Protocol));
+    if (msgsnd(env->serverMSGID, (void*)&protocol, SIZE_OF_PROTOCOL, 0) == -1) {
+        fprintf(stderr, "MSGSND failed\n");
+        exit(EXIT_FAILURE);
+    }
 }
  
 int RegController(ClientEnv* env) {
     char username[32];
     char password[32];
     Protocol protocol;
+    protocol.msg_type = MSG_TYPE_COMMON;
     protocol.pid = getpid();
     printf("Please input your username: ");
     scanf("%s", username);
     printf("Please input your password: ");
     scanf("%s", password);
     sprintf(protocol.msg, "REG %s %s\n", username, password);
-    write(env->serverFd, &protocol, sizeof(Protocol));
+    if (msgsnd(env->serverMSGID, (void*)&protocol, SIZE_OF_PROTOCOL, 0) == -1) {
+        fprintf(stderr, "MSGSND failed\n");
+        exit(EXIT_FAILURE);
+    }
     return 1;
 }
 
 void* WaitChatResponse(void* param) {
-    int res;
     Response response;
     ClientEnv* env = (ClientEnv*) param;
     while(1) {
-        res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0) {
-            if (response.type == RESPONSE_TYPE_CHT) {
-                if (response.state == CHT_TALK) {
-                    printf("\033[9D\033[K%s>>> Say: ", response.msg);
-                    fflush(stdout);
-                }
+        if (msgrcv(env->clientMSGID, (void*)&response, SIZE_OF_RESPONSE, MSG_TYPE_COMMON, 0) == -1) {
+            fprintf(stderr, "msgrcv failed with errno: %d\n", errno);
+            exit(EXIT_FAILURE);
+        }
+        if (response.type == RESPONSE_TYPE_CHT) {
+            if (response.state == CHT_TALK) {
+                printf("\033[9D\033[K%s>>> Say: ", response.msg);
+                fflush(stdout);
             }
-            else if (response.type == RESPONSE_TYPE_OUT) {
-                if (response.state == OUT_SUCCESS) {
-                    printf("Logout Successfully.\n");
-                    exit(0);
-                }
+        }
+        else if (response.type == RESPONSE_TYPE_OUT) {
+            if (response.state == OUT_SUCCESS) {
+                printf("Logout Successfully.\n");
+                exit(0);
             }
         }
     }
 }
 
 int WaitRegResponse(ClientEnv* env) {
-    int i;
-    int res;
     Response response;
     while(1) {
-        res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0 && response.type == RESPONSE_TYPE_REG) {
+        if (msgrcv(env->clientMSGID, (void*)&response, SIZE_OF_RESPONSE, MSG_TYPE_COMMON, 0) == -1) {
+            fprintf(stderr, "msgrcv failed with errno: %d\n", errno);
+            exit(EXIT_FAILURE);
+        }
+        if (response.type == RESPONSE_TYPE_REG) {
             printf("%d %s", response.state, response.msg);
             return 1;
         }
@@ -81,23 +92,29 @@ int LoginController(ClientEnv* env) {
     char username[32];
     char password[32];
     Protocol protocol;
+    protocol.msg_type = MSG_TYPE_COMMON;
     protocol.pid = getpid();
     printf("Please input your username: ");
     scanf("%s", username);
     printf("Please input your password: ");
     scanf("%s", password);
     sprintf(protocol.msg, "LOG %s %s\n", username, password);
-    write(env->serverFd, &protocol, sizeof(Protocol));
+    if (msgsnd(env->serverMSGID, (void*)&protocol, SIZE_OF_PROTOCOL, 0) == -1) {
+        fprintf(stderr, "MSGSND failed\n");
+        exit(EXIT_FAILURE);
+    }
     return 1;
 }
 
 int WaitLoginResponse(ClientEnv* env) {
     int i;
-    int res;
     Response response;
     while(1) {
-        res = read(env->clientFd, &response, sizeof(Response));
-        if (res > 0 && response.type == RESPONSE_TYPE_LOG) {
+        if (msgrcv(env->clientMSGID, (void*)&response, SIZE_OF_RESPONSE, MSG_TYPE_COMMON, 0) == -1) {
+            fprintf(stderr, "msgrcv failed with errno: %d\n", errno);
+            exit(EXIT_FAILURE);
+        }
+        if (response.type == RESPONSE_TYPE_LOG) {
             if (response.state == LOG_SUCCESS) {
                 i = 0;
                 while(response.msg[i] != ':' && i < 31) {
@@ -120,6 +137,7 @@ int LoopChat(ClientEnv* env) {
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, &WaitChatResponse, env);
     Protocol protocol;
+    protocol.msg_type = MSG_TYPE_COMMON;
     protocol.pid = getpid();
     char buffer[512];
     while(1) {
@@ -131,7 +149,10 @@ int LoopChat(ClientEnv* env) {
             continue;
         }
         sprintf(protocol.msg, "CHT %s", buffer);
-        write(env->serverFd, &protocol, sizeof(Protocol));
+        if (msgsnd(env->serverMSGID, (void*)&protocol, SIZE_OF_PROTOCOL, 0) == -1) {
+            fprintf(stderr, "MSGSND failed\n");
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
@@ -187,36 +208,19 @@ int main (int argc, char* argv[]) {
     signal(SIGINT, beforeExit);
     signal(SIGTERM, beforeExit);
 
-    if (access(SERVER_FIFO, F_OK) == -1) {
-        printf("Could not open FIFO %s.\n", SERVER_FIFO);
-        exit (EXIT_FAILURE);
+    clientEnv.serverMSGID = msgget((key_t) SERVER_MSGID, 0666 | IPC_CREAT);
+    if (clientEnv.serverMSGID == -1) {
+        fprintf(stderr, "Msgget(server) failed with errno: %d\n", errno);
+        exit(EXIT_FAILURE);
     }
 
-    clientEnv.serverFd = open(SERVER_FIFO, O_WRONLY);
-    if (clientEnv.serverFd == -1) {
-        printf("Could not open %s for write access.\n", SERVER_FIFO);
-        exit (EXIT_FAILURE);
-    }
-
-    sprintf(clientEnv.pipe, CLIENT_FIFO_PATTERN, getpid());
-    clientEnv.clientFIFO = mkfifo(clientEnv.pipe, 0777);
-    if (clientEnv.clientFIFO != 0) {
-        printf("FIFO %s was not created! \n", clientEnv.pipe);
-        exit (EXIT_FAILURE);
-    }
- 
-    clientEnv.clientFd = open(clientEnv.pipe, O_RDONLY | O_NONBLOCK);
-    if (clientEnv.clientFd == -1) {
-        printf("Could not open %s for read only access.\n", SERVER_FIFO);
+    clientEnv.clientMSGID = msgget((key_t) clientEnv.pid, 0666 | IPC_CREAT);
+    if (clientEnv.clientMSGID == -1) {
+        fprintf(stderr, "Msgget(client) failed with errno: %d\n", errno);
         exit(EXIT_FAILURE);
     }
 
     doChoose(&clientEnv);
-
-    close(clientEnv.serverFd);
-    close(clientEnv.clientFd);
-
-    unlink(clientEnv.clientFIFO);
 
     return 0;
 }
