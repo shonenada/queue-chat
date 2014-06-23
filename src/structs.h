@@ -48,7 +48,7 @@ typedef struct {
 
 /**
  * 响应协议定义
- *  type 类型(REG, LOG, CHT)
+ *  type 类型(REG, LOG, CHT, OUT)
  *  state 响应的状态。
  *  msg 表示响应的信息。
  **/

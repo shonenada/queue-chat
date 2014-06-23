@@ -16,6 +16,8 @@ void showHelp() {
     printf("*      Just Say                   *\n");
     printf("*   2. Talk to particular user    *\n");
     printf("*      @username message          *\n");
+    printf("*   3. input \"quit\"               *\n");
+    printf("*      Exit the chat room         *\n");
     printf("***********************************\n");
 }
 
@@ -23,7 +25,7 @@ void Logout() {
     ClientEnv* env = &clientEnv;
     Protocol protocol;
     protocol.pid = getpid();
-    sprintf(protocol.msg, "OUT\n");
+    sprintf(protocol.msg, "OUT %s\n", clientEnv.username);
     write(env->serverFd, &protocol, sizeof(Protocol));
 }
  
@@ -128,6 +130,10 @@ int LoopChat(ClientEnv* env) {
         fgets(buffer, 512, stdin);
         if (strcmp(buffer, "help\n") == 0) {
             showHelp();
+            continue;
+        }
+        if (strcmp(buffer, "quit\n") == 0) {
+            exit(0);
             continue;
         }
         sprintf(protocol.msg, "CHT %s", buffer);
