@@ -26,7 +26,7 @@ void Logout() {
     Protocol protocol;
     protocol.msg_type = MSG_TYPE_COMMON;
     protocol.pid = getpid();
-    sprintf(protocol.msg, "OUT\n");
+    sprintf(protocol.msg, "OUT %s\n", env->username);
     if (msgsnd(env->serverMSGID, (void*)&protocol, SIZE_OF_PROTOCOL, 0) == -1) {
         fprintf(stderr, "MSGSND failed\n");
         exit(EXIT_FAILURE);
@@ -146,6 +146,10 @@ int LoopChat(ClientEnv* env) {
         fgets(buffer, 512, stdin);
         if (strcmp(buffer, "help\n") == 0) {
             showHelp();
+            continue;
+        }
+        if (strcmp(buffer, "quit\n") == 0) {
+            exit(0);
             continue;
         }
         sprintf(protocol.msg, "CHT %s", buffer);

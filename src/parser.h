@@ -8,6 +8,22 @@
 
 #include "structs.h"
 
+void broadcast(ServerEnv* env, Protocol* protocol, Response* response) {
+    int i;
+    int msgid;
+    int client_pid;
+    for (i=0; i<env->userCount; ++i) {
+        client_pid = env->online[i];
+        if (client_pid > 0 && protocol->pid != client_pid) {
+            msgid = msgget((key_t) client_pid, 0666);
+            if (msgsnd(msgid, (void*)response, SIZE_OF_RESPONSE, 0) == -1) {
+                fprintf(stderr, "MSGSND failed\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+}
+
 Response* RegHandler(ServerEnv* env, Protocol* protocol) {
     int i, j, flag;
     User newUser;
@@ -99,6 +115,12 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
     else if (flag == 1) {
         response->state = LOG_SUCCESS;
         sprintf(response->msg, "%s: Login successfully.\n", username);
+        Response* loginResponse = (Response*) malloc(sizeof(Response));
+        loginResponse->type = RESPONSE_TYPE_CHT;
+        loginResponse->state = CHT_TALK;
+        sprintf(loginResponse->msg, "\033[47;31mSystem Info: %s onlined.\033[0m\n", username);
+        broadcast(env, protocol, loginResponse);
+        free(loginResponse);
         return response;
     }
     else if (flag == 0) {
@@ -134,26 +156,15 @@ Response* IndirectChatHandler(ServerEnv* env, Protocol* protocol) {
         sprintf(response->msg, "User not login\n");
         return response;
     }
-    int msgid;
-    int client_pid;
     Response* chatResponse = (Response*) malloc(sizeof(Response));
     chatResponse->msg_type = MSG_TYPE_COMMON;
     chatResponse->type = RESPONSE_TYPE_CHT;
     chatResponse->state = CHT_TALK;
     sprintf(chatResponse->msg, "\033[47;31m%s\033[0m say: \033[32m%s\033[0m\n", user->username, msg);
-    for (i=0; i<env->userCount; ++i) {
-        client_pid = env->online[i];
-        if (client_pid > 0 && client_pid != protocol->pid) {
-            msgid = msgget((key_t) client_pid, 0666);
-            if (msgsnd(msgid, (void*)chatResponse, SIZE_OF_RESPONSE, 0) == -1) {
-                fprintf(stderr, "MSGSND failed\n");
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
+    broadcast(env, protocol, chatResponse);
+    free(chatResponse);
     response->state = CHT_SUCCESS;
     sprintf(response->msg, "Success.\n");
-    free(chatResponse);
     return response;
 }
 
@@ -214,7 +225,16 @@ Response* DirectChatHandler(ServerEnv* env, Protocol* protocol) {
 }
 
 Response* Logout(ServerEnv* env, Protocol* protocol) {
-    int i;
+    int i, j;
+    char username[32];
+    i = 0;
+    j = 4;
+    while(protocol->msg[j] != ' ' && protocol->msg[j] != '\n') {
+        username[i] = protocol->msg[j];
+        i++;
+        j++;
+    }
+    username[i] = '\0';
     Response* response = (Response*) malloc(sizeof(Response));
     response->msg_type = MSG_TYPE_COMMON;
     response->type = RESPONSE_TYPE_OUT;
@@ -223,6 +243,12 @@ Response* Logout(ServerEnv* env, Protocol* protocol) {
             env->online[i] = 0;
             response->state = OUT_SUCCESS;
             sprintf(response->msg, "Logout Success.\n");
+            Response* logoutResponse = (Response*) malloc(sizeof(Response));
+            logoutResponse->type = RESPONSE_TYPE_CHT;
+            logoutResponse->state = CHT_TALK;
+            sprintf(logoutResponse->msg, "\033[47;31mSystem Info: %s offlined.\033[0m\n", username);
+            broadcast(env, protocol, logoutResponse);
+            free(logoutResponse);
             return response;
         }
     }
