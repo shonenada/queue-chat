@@ -18,6 +18,8 @@ void showHelp() {
     printf("*      Just Say                   *\n");
     printf("*   2. Talk to particular user    *\n");
     printf("*      @username message          *\n");
+    printf("*   3. input \"quit\"               *\n");
+    printf("*      Exit the chat room         *\n");
     printf("***********************************\n");
 }
 
