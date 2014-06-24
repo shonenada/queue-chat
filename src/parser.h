@@ -116,6 +116,7 @@ Response* LoginHandler(ServerEnv* env, Protocol* protocol) {
         response->state = LOG_SUCCESS;
         sprintf(response->msg, "%s: Login successfully.\n", username);
         Response* loginResponse = (Response*) malloc(sizeof(Response));
+        loginResponse->msg_type = MSG_TYPE_COMMON;
         loginResponse->type = RESPONSE_TYPE_CHT;
         loginResponse->state = CHT_TALK;
         sprintf(loginResponse->msg, "\033[47;31mSystem Info: %s onlined.\033[0m\n", username);
